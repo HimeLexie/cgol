@@ -8,3 +8,8 @@ edition = "2021"
 criterion = "0.5.1"
 crossterm = "0.27.0"
 rand = "0.8.5"
+termion = "4.0.2"
+
+[[bench]]
+name = "cgol_benchmark"
+harness = false
