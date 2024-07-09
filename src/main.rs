@@ -77,8 +77,8 @@ fn cgol_step(in_arr: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     out_arr
 }
 
+// TODO: work on interface and get Windows support set up
 fn main() {
-    
     let (mut x, mut y)= match termion::terminal_size() {
         Ok(tuple) => match tuple {
             (a, b) => (a as u64, b as u64)
@@ -86,6 +86,7 @@ fn main() {
         Err(err) => panic!("{err:?}") 
     };
     let mut args = vec![env::args().collect::<Vec<_>>()[1].parse::<u64>().unwrap()];
+
     if env::args().len() > 2 {
         args=env::args()
              .collect::<Vec<_>>()[1..=3]
@@ -99,16 +100,20 @@ fn main() {
     }
     let rand_arr: &Vec<Vec<u8>> = &random_start(x, y);
     let mut padded_arr = pad_array(rand_arr);
-    let previous_frame_store_count = 128; 
+    let previous_frame_store_count = 128;
+    let check_every = 10;
     let s = RandomState::new();
     let mut previous_frame_hashes: BTreeSet<u64> = BTreeSet::new();
+
     for i in 0..args[0] {
         padded_arr=cgol_step(padded_arr);
         print_2d_arr(&padded_arr);
-        if i % 10 == 0{
+
+        if i % check_every == 0{
             let mut hasher = s.build_hasher();
             padded_arr.hash(&mut hasher);
             let hash = hasher.finish();
+
             if previous_frame_hashes.contains(&hash) {
                 sleep(time::Duration::from_secs(1));
                 print!("\x1bc");
