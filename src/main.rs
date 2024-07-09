@@ -1,13 +1,14 @@
-use std::env;
+use core::time;
+use std::{collections::BTreeSet, env, hash::{BuildHasher, Hash, Hasher, RandomState}, thread::sleep};
 use rand::Rng;
-use crossterm;
+use termion;
 
-fn random_start(x_size: &u64, y_size: &u64) -> Vec<Vec<u8>> {
+fn random_start(x_size: u64, y_size: u64) -> Vec<Vec<u8>> {
     let mut rng = rand::thread_rng();
     let mut col: Vec<Vec<u8>> = Vec::new();
-    for _i in 1..=*y_size {
+    for _i in 1..= y_size {
         let mut row = Vec::new();
-        for _j in 1..=*x_size {
+        for _j in 1..= x_size {
             // rand::rngs::adapter::ReseedingRng::reseed(&mut self);
             row.push(rng.gen_range(0..=1)); 
         }
@@ -32,15 +33,16 @@ fn pad_array(arr: &Vec<Vec<u8>>) -> Vec<Vec<u8>>{
 }
 
 fn print_2d_arr(arr: &Vec<Vec<u8>>) {
-    let mut pixel_arr = vec![vec![' '; arr[0].len()]; arr.len()];
     for (i, i_value) in arr.iter().enumerate(){
+        let mut row = vec![' '; arr[0].len()];
         for (j, j_value) in i_value.iter().enumerate() {
             let pixel: char = match *j_value {
                 0 => ' ',
                 _ => '█'
             }; 
-            pixel_arr[i][j]=pixel           
+            row[j]=pixel           
         }
+        println!("\x1b[{i};0H{}", row.iter().collect::<String>())
     }
     
 }
@@ -76,7 +78,8 @@ fn cgol_step(in_arr: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
 }
 
 fn main() {
-    let (mut x, mut y)= match crossterm::terminal::size() {
+    
+    let (mut x, mut y)= match termion::terminal_size() {
         Ok(tuple) => match tuple {
             (a, b) => (a as u64, b as u64)
         },
@@ -94,11 +97,29 @@ fn main() {
         x -= 2;
         y -= 2;
     }
-    let rand_arr: &Vec<Vec<u8>> = &random_start(&x, &y);
-    let mut pad_arr = pad_array(rand_arr);
-    for _i in 0..args[0] {
-        pad_arr=cgol_step(pad_arr);
-        print_2d_arr(&pad_arr);
+    let rand_arr: &Vec<Vec<u8>> = &random_start(x, y);
+    let mut padded_arr = pad_array(rand_arr);
+    let previous_frame_store_count = 128; 
+    let s = RandomState::new();
+    let mut previous_frame_hashes: BTreeSet<u64> = BTreeSet::new();
+    for i in 0..args[0] {
+        padded_arr=cgol_step(padded_arr);
+        print_2d_arr(&padded_arr);
+        if i % 10 == 0{
+            let mut hasher = s.build_hasher();
+            padded_arr.hash(&mut hasher);
+            let hash = hasher.finish();
+            if previous_frame_hashes.contains(&hash) {
+                sleep(time::Duration::from_secs(1));
+                print!("\x1bc");
+                break
+            } else {
+                previous_frame_hashes.insert(hash);
+            }
+            if previous_frame_hashes.len() > previous_frame_store_count {
+                previous_frame_hashes.pop_first();
+            }
+        }
+
     }
-    print!("\x1bc");
 }
